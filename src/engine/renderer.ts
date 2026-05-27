@@ -153,40 +153,127 @@ export function buildFilterDef(
   params: Record<string, any>,
   filterId: string
 ): React.ReactElement | null {
-  const hasShadow = params.shadowBlur > 0 || params.shadowX !== 0 || params.shadowY !== 0;
-  const hasGlow = params.glowIntensity > 0;
+  const waveAmplitude = params.waveAmplitude ?? 0;
+  const waveFrequency = params.waveFrequency ?? 4;
+  const noiseAmount = params.noiseAmount ?? 0;
+  const noiseSeed = (params.noiseSeed ?? 0) % 100;
+  const shadowBlurVal = params.shadowBlur ?? 0;
+  const shadowX = params.shadowX ?? 0;
+  const shadowY = params.shadowY ?? 0;
+  const glowIntensity = params.glowIntensity ?? 0;
 
-  if (!hasShadow && !hasGlow) return null;
+  const hasWave = waveAmplitude > 0;
+  const hasNoise = noiseAmount > 0;
+  const hasShadow = shadowBlurVal > 0 || shadowX !== 0 || shadowY !== 0;
+  const hasGlow = glowIntensity > 0;
+
+  if (!hasWave && !hasNoise && !hasShadow && !hasGlow) return null;
 
   const children: React.ReactElement[] = [];
-  let lastResult = 'SourceGraphic';
+  let current = 'SourceGraphic';
 
-  if (hasShadow) {
+  // Wave displacement — fractalNoise gives smooth organic undulation
+  if (hasWave) {
+    const freqX = (0.005 + (waveFrequency / 20) * 0.095).toFixed(4);
+    const freqY = (0.003 + (waveFrequency / 20) * 0.030).toFixed(4);
     children.push(
-      React.createElement('feDropShadow', {
-        key: 'shadow',
-        dx: params.shadowX ?? 0,
-        dy: params.shadowY ?? 0,
-        stdDeviation: (params.shadowBlur ?? 0) / 2,
-        floodColor: params.shadowColor ?? '#000000',
-        result: 'shadow',
+      React.createElement('feTurbulence', {
+        key: 'wave-turb',
+        type: 'fractalNoise',
+        baseFrequency: `${freqX} ${freqY}`,
+        numOctaves: 2,
+        seed: noiseSeed,
+        result: 'waveMap',
+      }),
+      React.createElement('feDisplacementMap', {
+        key: 'wave-disp',
+        in: current,
+        in2: 'waveMap',
+        scale: waveAmplitude * 2,
+        xChannelSelector: 'R',
+        yChannelSelector: 'G',
+        result: 'waved',
       })
     );
-    lastResult = 'shadow';
+    current = 'waved';
   }
 
+  // Noise/roughness — turbulence type gives jagged, rough edges
+  if (hasNoise) {
+    children.push(
+      React.createElement('feTurbulence', {
+        key: 'noise-turb',
+        type: 'turbulence',
+        baseFrequency: '0.065',
+        numOctaves: 4,
+        seed: (noiseSeed + 42) % 100,
+        result: 'noiseMap',
+      }),
+      React.createElement('feDisplacementMap', {
+        key: 'noise-disp',
+        in: current,
+        in2: 'noiseMap',
+        scale: noiseAmount * 2,
+        xChannelSelector: 'R',
+        yChannelSelector: 'G',
+        result: 'noised',
+      })
+    );
+    current = 'noised';
+  }
+
+  // Shadow — explicit primitives so it composites on the distorted result
+  if (hasShadow) {
+    const shadowMergeResult = hasGlow ? 'afterShadow' : undefined;
+    children.push(
+      React.createElement('feGaussianBlur', {
+        key: 'shd-blur',
+        in: current,
+        stdDeviation: shadowBlurVal / 2,
+        result: 'shdBlur',
+      }),
+      React.createElement('feOffset', {
+        key: 'shd-off',
+        in: 'shdBlur',
+        dx: shadowX,
+        dy: shadowY,
+        result: 'shdOff',
+      }),
+      React.createElement('feFlood', {
+        key: 'shd-flood',
+        floodColor: params.shadowColor ?? '#000000',
+        result: 'shdCol',
+      }),
+      React.createElement('feComposite', {
+        key: 'shd-comp',
+        in: 'shdCol',
+        in2: 'shdOff',
+        operator: 'in',
+        result: 'shdFinal',
+      }),
+      React.createElement(
+        'feMerge',
+        { key: 'shd-merge', ...(shadowMergeResult ? { result: shadowMergeResult } : {}) },
+        React.createElement('feMergeNode', { key: 'smn1', in: 'shdFinal' }),
+        React.createElement('feMergeNode', { key: 'smn2', in: current })
+      )
+    );
+    if (shadowMergeResult) current = shadowMergeResult;
+  }
+
+  // Glow — blur on SourceGraphic merged behind final result
   if (hasGlow) {
-    const intensity = (params.glowIntensity ?? 0) / 5;
+    const intensity = glowIntensity / 5;
     children.push(
       React.createElement('feGaussianBlur', {
         key: 'glow-blur',
         in: 'SourceGraphic',
         stdDeviation: intensity,
-        result: 'glow',
+        result: 'glowBlur',
       }),
       React.createElement('feMerge', { key: 'glow-merge' },
-        React.createElement('feMergeNode', { key: 'mn1', in: 'glow' }),
-        React.createElement('feMergeNode', { key: 'mn2', in: lastResult })
+        React.createElement('feMergeNode', { key: 'gmn1', in: 'glowBlur' }),
+        React.createElement('feMergeNode', { key: 'gmn2', in: current })
       )
     );
   }
