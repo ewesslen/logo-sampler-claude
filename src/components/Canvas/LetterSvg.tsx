@@ -47,7 +47,7 @@ const LetterSvg = React.memo(function LetterSvg({
   const hasFrame = params.frameShape && params.frameShape !== 'None';
 
   const framePath = hasFrame
-    ? getFramePath(params.frameShape, size, params.frameCornerRadius ?? 8)
+    ? getFramePath(params.frameShape, size, params.frameCornerRadius ?? 8, params.framePadding ?? 15)
     : '';
 
   const blendMode = blendModeToCss(params.blendMode ?? 'Normal');
