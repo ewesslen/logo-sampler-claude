@@ -1,5 +1,5 @@
 import React, { useState, useCallback } from 'react';
-import { ChevronDown, ChevronRight, Shuffle } from 'lucide-react';
+import { ChevronDown, ChevronRight, Shuffle, RotateCcw } from 'lucide-react';
 import { PARAMS, SECTIONS, type ParamConfig, type SectionId } from '../../params.config';
 import { useParamsStore } from '../../state/useParamsStore';
 import ParamSlider from './ParamSlider';
@@ -120,13 +120,24 @@ interface SectionPanelProps {
 const SectionPanel = React.memo(function SectionPanel({ sectionId, label, params }: SectionPanelProps) {
   const [open, setOpen] = useState(true);
   const randomize = useParamsStore((s) => s.randomize);
+  const resetSection = useParamsStore((s) => s.resetSection);
+  const toggleSection = useParamsStore((s) => s.toggleSection);
+  const disabledSections = useParamsStore((s) => s.disabledSections);
+  const isDisabled = disabledSections.has(sectionId);
 
   const handleRandomize = useCallback(
-    (e: React.MouseEvent) => {
-      e.stopPropagation();
-      randomize(sectionId);
-    },
+    (e: React.MouseEvent) => { e.stopPropagation(); randomize(sectionId); },
     [sectionId, randomize]
+  );
+
+  const handleReset = useCallback(
+    (e: React.MouseEvent) => { e.stopPropagation(); resetSection(sectionId); },
+    [sectionId, resetSection]
+  );
+
+  const handleToggle = useCallback(
+    (e: React.MouseEvent) => { e.stopPropagation(); toggleSection(sectionId); },
+    [sectionId, toggleSection]
   );
 
   return (
@@ -136,19 +147,46 @@ const SectionPanel = React.memo(function SectionPanel({ sectionId, label, params
         className="w-full flex items-center justify-between px-3 py-2 text-left hover:bg-gray-800 transition-colors"
       >
         <div className="flex items-center gap-2">
-          {open ? <ChevronDown size={13} className="text-gray-500" /> : <ChevronRight size={13} className="text-gray-500" />}
-          <span className="text-xs font-semibold text-gray-300 uppercase tracking-wider">{label}</span>
+          {open
+            ? <ChevronDown size={13} className="text-gray-500" />
+            : <ChevronRight size={13} className="text-gray-500" />}
+          <span className={`text-xs font-semibold uppercase tracking-wider transition-colors ${isDisabled ? 'text-gray-600' : 'text-gray-300'}`}>
+            {label}
+          </span>
         </div>
-        <button
-          onClick={handleRandomize}
-          className="p-1 text-gray-500 hover:text-gray-300 rounded transition-colors"
-          title={`Randomize ${label}`}
-        >
-          <Shuffle size={12} />
-        </button>
+        <div className="flex items-center gap-1">
+          <button
+            onClick={handleReset}
+            className="p-1 text-gray-500 hover:text-gray-300 rounded transition-colors"
+            title={`Reset ${label} to defaults`}
+          >
+            <RotateCcw size={12} />
+          </button>
+          <button
+            onClick={handleRandomize}
+            className="p-1 text-gray-500 hover:text-gray-300 rounded transition-colors"
+            title={`Randomize ${label}`}
+          >
+            <Shuffle size={12} />
+          </button>
+          {/* Section on/off toggle */}
+          <button
+            onClick={handleToggle}
+            className={`relative inline-flex h-4 w-7 items-center rounded-full transition-colors flex-shrink-0 ${
+              isDisabled ? 'bg-gray-700' : 'bg-blue-500'
+            }`}
+            title={isDisabled ? `Enable ${label}` : `Disable ${label}`}
+            role="switch"
+            aria-checked={!isDisabled}
+          >
+            <span className={`inline-block h-3 w-3 transform rounded-full bg-white transition-transform ${
+              isDisabled ? 'translate-x-0.5' : 'translate-x-3.5'
+            }`} />
+          </button>
+        </div>
       </button>
       {open && (
-        <div className="px-3 pb-2">
+        <div className={`px-3 pb-2 transition-opacity ${isDisabled ? 'opacity-40 pointer-events-none' : ''}`}>
           {params.map((p) => (
             <ParamControl key={p.id} param={p} />
           ))}

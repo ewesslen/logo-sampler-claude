@@ -2,6 +2,7 @@ import React, { useRef, useState, useCallback, useEffect } from 'react';
 import { ZoomIn, ZoomOut, Maximize2 } from 'lucide-react';
 import LetterSvg from './LetterSvg';
 import { useParamsStore } from '../../state/useParamsStore';
+import { getEffectiveParams } from '../../params.config';
 
 interface CanvasProps {
   letter: string;
@@ -11,7 +12,9 @@ interface CanvasProps {
 const ICON_SIZES = [16, 32, 64, 128, 256];
 
 const Canvas = React.memo(function Canvas({ letter, font }: CanvasProps) {
-  const params = useParamsStore((s) => s.params);
+  const rawParams = useParamsStore((s) => s.params);
+  const disabledSections = useParamsStore((s) => s.disabledSections);
+  const params = getEffectiveParams(rawParams, disabledSections);
   const [zoom, setZoom] = useState(100);
   const [pan, setPan] = useState({ x: 0, y: 0 });
   const [isDragging, setIsDragging] = useState(false);

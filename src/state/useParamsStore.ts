@@ -1,9 +1,10 @@
 import { create } from 'zustand';
-import { PARAMS, DEFAULT_PARAMS } from '../params.config';
+import { PARAMS, DEFAULT_PARAMS, type SectionId } from '../params.config';
 
 interface ParamsState {
   params: Record<string, any>;
   lockedParams: Set<string>;
+  disabledSections: Set<SectionId>;
   history: Record<string, any>[];
   historyIndex: number;
 
@@ -11,6 +12,8 @@ interface ParamsState {
   setParams: (partial: Record<string, any>) => void;
   lockParam: (id: string) => void;
   unlockParam: (id: string) => void;
+  toggleSection: (id: SectionId) => void;
+  resetSection: (id: SectionId) => void;
   undo: () => void;
   redo: () => void;
   randomize: (sectionId?: string) => void;
@@ -35,6 +38,7 @@ function pushHistory(
 export const useParamsStore = create<ParamsState>((set, get) => ({
   params: { ...DEFAULT_PARAMS },
   lockedParams: new Set<string>(),
+  disabledSections: new Set<SectionId>(),
   history: [{ ...DEFAULT_PARAMS }],
   historyIndex: 0,
 
@@ -75,6 +79,27 @@ export const useParamsStore = create<ParamsState>((set, get) => ({
       const next = new Set(state.lockedParams);
       next.delete(id);
       return { lockedParams: next };
+    });
+  },
+
+  toggleSection(id) {
+    set((state) => {
+      const next = new Set(state.disabledSections);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return { disabledSections: next };
+    });
+  },
+
+  resetSection(id) {
+    const updates: Record<string, any> = {};
+    for (const p of PARAMS) {
+      if (p.section === id) updates[p.id] = p.default;
+    }
+    set((state) => {
+      const newParams = { ...state.params, ...updates };
+      const hist = pushHistory(state.history, state.historyIndex, newParams);
+      return { params: newParams, ...hist };
     });
   },
 

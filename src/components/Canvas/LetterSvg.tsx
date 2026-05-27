@@ -47,7 +47,7 @@ const LetterSvg = React.memo(function LetterSvg({
   const hasFrame = params.frameShape && params.frameShape !== 'None';
 
   const framePath = hasFrame
-    ? getFramePath(params.frameShape, size, params.frameCornerRadius ?? 8)
+    ? getFramePath(params.frameShape, size, params.frameCornerRadius ?? 8, params.framePadding ?? 15)
     : '';
 
   const blendMode = blendModeToCss(params.blendMode ?? 'Normal');
@@ -59,13 +59,18 @@ const LetterSvg = React.memo(function LetterSvg({
   const scaleY = (params.scaleY ?? 100) / 100;
   const slant = params.slant ?? 0;
   const rotation = params.rotation ?? 0;
+  // Bulge stretches X (positive) or pinches X (negative)
+  const bulge = params.bulge ?? 0;
+  const bulgeScaleX = scaleX * (1 + bulge / 300);
+  // Twist is approximated as a skewY shear — gives a visible tilt/warp effect
+  const twistSkew = (params.twist ?? 0) * 0.12;
 
-  // Main transform: translate to center, rotate, scale, skew, translate back
   const letterTransform = [
     `translate(${cx} ${cy})`,
     rotation !== 0 ? `rotate(${rotation})` : '',
-    scaleX !== 1 || scaleY !== 1 ? `scale(${scaleX} ${scaleY})` : '',
+    `scale(${bulgeScaleX} ${scaleY})`,
     slant !== 0 ? `skewX(${-slant})` : '',
+    twistSkew !== 0 ? `skewY(${twistSkew})` : '',
     `translate(${-cx} ${-cy})`,
   ]
     .filter(Boolean)

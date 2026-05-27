@@ -553,3 +553,19 @@ export const FONTS = [
   'Playfair Display',
   'Bebas Neue',
 ];
+
+// Returns params with defaults substituted for any disabled section.
+// Disabled sections have no visual effect; their stored values are preserved.
+export function getEffectiveParams(
+  params: Record<string, any>,
+  disabledSections: Set<string>
+): Record<string, any> {
+  if (disabledSections.size === 0) return params;
+  const result = { ...params };
+  for (const p of PARAMS) {
+    if (disabledSections.has(p.section)) {
+      result[p.id] = p.default;
+    }
+  }
+  return result;
+}
